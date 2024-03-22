@@ -1,0 +1,111 @@
+	'*********************************************************************************
+	' DOCUMENT
+	'*********************************************************************************
+	Dim partDoc As PartDocument = ThisApplication.ActiveDocument
+	Dim partDef As PartComponentDefinition = partDoc.ComponentDefinition
+
+	'*********************************************************************************
+	' iProperties
+	'*********************************************************************************
+	Dim model As String = iProperties.Value("Custom", "MODEL")
+
+	'*********************************************************************************
+	' MODEL DICTIONARY
+	'*********************************************************************************
+	Dim modelSplit As String() = model.Split("-"c)
+	Dim modelDictionary As New Dictionary(Of String, String)
+
+	modelDictionary.Add("TYPE", modelSplit(0))
+	modelDictionary.Add("WIDTH", modelSplit(1))
+	modelDictionary.Add("LENGTH", modelSplit(2))
+	modelDictionary.Add("HANDLE HAND", modelSplit(3))
+
+	'*********************************************************************************
+	' CREATING VARIABLES AND LETTING THE DICTIONARY DEFINE THEM
+	'*********************************************************************************	
+	Dim type As String = modelDictionary.Item("TYPE")
+	Dim width As String = modelDictionary.Item("WIDTH")
+	Dim length As String = modelDictionary.Item("LENGTH")
+	Dim handleHand As String = modelDictionary.Item("HANDLE HAND")
+
+	'*********************************************************************************
+	' PUSHING DICTIONARY VALUES INTO PARAMETER EXPRESSIONS
+	'*********************************************************************************
+	If length <> "" Then Parameter.Param("LENGTH").Expression = length
+	If width <> "" Then Parameter.Param("WIDTH").Expression = width
+
+	'*********************************************************************************
+	' FINDING FEATURES BY TYPE
+	'*********************************************************************************
+	Dim mirrorFeature As MirrorFeature
+	Dim mirrorDef As MirrorFeatureDefinition
+	Dim modelFeature As PartFeature
+	Dim sweepFeature As SweepFeature
+
+	For Each modelFeature In partDef.Features
+		If TypeOf modelFeature Is mirrorFeature Then
+			mirrorFeature = modelFeature
+		ElseIf TypeOf modelFeature Is sweepFeature Then
+			sweepFeature = modelFeature
+		End If
+	Next
+
+	mirrorDef = mirrorFeature.Definition
+
+	'*********************************************************************************
+	' CONTROLLING HANDLE FEATURES SO THAT THE HANDLE HAND 
+	' IS CORRECT. 
+	'*********************************************************************************
+	Dim isOriginalRemoved As Boolean = False
+	Dim isMirrorSuppressed As Boolean = False
+	Dim isSweepSuppressed As Boolean = False
+
+	Select Case handleHand
+		Case "L"
+			isOriginalRemoved = True
+		Case "R"
+			isMirrorSuppressed = True
+		Case "N"
+			isSweepSuppressed = True
+			isMirrorSuppressed = True
+	End Select
+
+	mirrorDef.RemoveOriginal = isOriginalRemoved 'HAVE TO USE THE MIRROR DEFINITION TO GET TO THIS PROPERTY
+	sweepFeature.Suppressed = isSweepSuppressed
+	mirrorFeature.Suppressed = isMirrorSuppressed
+
+	'*********************************************************************************
+	' SET VALUES FOR THE REMAINING PARAMETERS THAT ARE CONTROLLED BY THE MODEL TYPE
+	'*********************************************************************************
+	Dim height As String = "12"
+	Dim handleGap As String = "6"
+	Dim handleEndOffset As String = "6"
+	Dim handleOffsetTop As String = "3"
+
+	Select Case type
+		Case "JKL"
+			'DEFAULTS SET ABOVE
+		Case "TJY"
+			height = "6"
+			handleGap = "3"
+			handleEndOffset = "3"
+			handleOffsetTop = "2.5"
+		Case "ATQ"
+			height = "8"
+			handleGap = "4"
+			handleEndOffset = "2.5"
+			handleOffsetTop = "2.5"
+	End Select
+
+	'*********************************************************************************
+	' PUSHING VALUES INTO THE PARAMETER EXPRESSIONS
+	'*********************************************************************************		
+	If height <> "" Then Parameter.Param("HEIGHT").Expression = height
+	If handleGap <> "" Then Parameter.Param("HANDLE_GAP").Expression = handleGap
+	If handleEndOffset <> "" Then Parameter.Param("HANDLE_OFFSET_END").Expression = handleEndOffset
+	If handleOffsetTop <> "" Then Parameter.Param("HANDLE_OFFSET_TOP").Expression = handleOffsetTop
+
+	'*********************************************************************************
+	' UPDATE MODEL
+	'*********************************************************************************	
+	iLogicVb.UpdateWhenDone = True
